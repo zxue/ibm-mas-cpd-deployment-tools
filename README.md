@@ -6,7 +6,7 @@ This document describes a few custom tools that you can use during MAS and CP4D 
 
 ## List MAS superuser account
 
-You can look up the default MAS admin account by search the superuser secret in OpenShift. Optionally, you can run the playbook to get the admin account after logging in to the OpenShift cluster.
+You can look up the default MAS admin account by search the superuser secret in OpenShift. Optionally, you can run the [playbook](docs/list_mas_account.yml) to get the admin account after logging in to the OpenShift cluster.
 
 ```
 oc login --token=xxx --server=xxx:6443
@@ -33,7 +33,7 @@ ok: [localhost] => {
 
 ## List MAS application resources
 
-When you deploy MAS applications such as MAS Manage with playbooks, you wait for application and workspace to be ready. If you are curious of what application resources are and what each resource status is, you can use the tool, `list_mas_status` to obtain the information.
+When you deploy MAS applications such as MAS Manage with playbooks, you wait for application and workspace to be ready. If you are curious of what application resources are and what each resource status is, you can use the [playbook](docs/list_mas_status.yml), `list_mas_status` to obtain the information.
 
 ```
 # change mas_devops_path to point to your local mas devops repo in the yaml file
@@ -82,7 +82,7 @@ ok: [localhost] =>
 
 ## List CP4D account
 
-Similar to MAS deployment, you can look up the default CP4D admin account in OpenShift. Optionally, you can run the playbook to get the admin or cpadmin credentials.
+Similar to MAS deployment, you can look up the default CP4D admin account in OpenShift. Optionally, you can run the [playbook](docs/list_cp4d_account.yml) to get the admin or cpadmin credentials.
 
 ```
 export PROJECT_CPD_INST_OPERANDS=ibm-cpd
