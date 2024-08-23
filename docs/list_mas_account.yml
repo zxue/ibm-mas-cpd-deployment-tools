@@ -1,0 +1,59 @@
+---
+# playbook to list MAS superuser account
+# set the env if the default values are different
+#export MAS_INSTANCE_ID=inst1
+#export PROJECT_CPD_INST_OPERANDS=ibm-cpd
+#ansible-playbook list_mas_account.yml
+
+- hosts: localhost
+  any_errors_fatal: true
+
+# Get MAS Credentials
+# -----------------------------------------------------------------------------
+
+  vars:
+      mas_instance_id: "{{ lookup('env', 'MAS_INSTANCE_ID') | default('inst1', true) }}"
+      cpd_instance_namespace: "{{ lookup('env', 'PROJECT_CPD_INST_OPERANDS') | default('ibm-cpd', true) }}"
+  tasks:
+
+  - name: "Configure namespace"
+    set_fact:
+      mas_namespace: "mas-{{ mas_instance_id }}-core"
+
+  - name: "Lookup MAS superuser credentials"
+    kubernetes.core.k8s_info:
+      api_version: v1
+      kind: Secret
+      name: "{{ mas_instance_id }}-credentials-superuser"
+      namespace: "{{mas_namespace}}"
+    register: superuser_credentials
+
+  - name: "Show the username/password"
+    set_fact:
+      superuser_username: "{{ superuser_credentials.resources[0].data.username | b64decode }}"
+      superuser_password: "{{ superuser_credentials.resources[0].data.password | b64decode }}"
+
+  - name: Lookup Route for admin
+    kubernetes.core.k8s_info:
+      api_version: route.openshift.io/v1
+      kind: Route
+      name: "{{ mas_instance_id}}-admin"
+      namespace: "{{ mas_namespace }}"
+    register: admin_route
+
+  - name: "Lookup cluster subdomain"
+    kubernetes.core.k8s_info:
+      api_version: config.openshift.io/v1
+      kind: Ingress
+      name: cluster
+    register: cluster_subdomain
+
+  - name: "Maximo Application Suite Authentication Summary:"
+    debug:
+      msg:
+        - "Maximo Application Suite is Ready, use the superuser credentials to authenticate"
+        - "Admin Dashboard ... https://{{ admin_route.resources[0].spec.host }}"
+        - "Username .......... {{ superuser_username }}"
+        - "Password .......... {{ superuser_password }}"
+
+

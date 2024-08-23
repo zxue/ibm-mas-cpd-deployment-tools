@@ -1,0 +1,64 @@
+---
+- hosts: localhost
+  any_errors_fatal: true
+
+# Get MAS Credentials
+# -----------------------------------------------------------------------------
+
+  vars:
+      mas_devops_path: "~/github/ansible-devops/ibm/mas_devops"
+      mas_instance_id: "{{ lookup('env', 'MAS_INSTANCE_ID') | default('inst1', true) }}"
+      mas_app_id: "{{ lookup('env', 'MAS_APP_ID') | default('manage', true) }}"
+      mas_workspace_id: "{{ lookup('env', 'MAS_WORKSPACE_ID') | default('masdev', true) }}"
+ 
+  tasks:
+
+    - name: "Fail if required properties are not provided"
+      assert:
+        that:
+          - mas_instance_id is defined and mas_instance_id != ""
+          - mas_app_id is defined and mas_app_id != ""
+          - mas_workspace_id is defined and mas_workspace_id != ""
+        fail_msg: "Missing one or more required properties"
+
+    - name: "Configure namespace"
+      set_fact:
+        mas_namespace: "mas-{{ mas_instance_id }}-core"
+        mas_app_namespace: "mas-{{ mas_instance_id }}-{{ mas_app_id }}"
+
+    - name: Load mas_appws variables
+      include_vars: "{{ mas_devops_path }}/roles/suite_app_install/vars/{{ mas_app_id }}.yml"
+    
+    - name: Show vars
+      debug:
+        msg:
+          - "mas_appws vars: {{ mas_devops_path }}/roles/suite_app_install/vars/{{ mas_app_id }}.yml"
+          - "Instance ID ................ {{ mas_instance_id }}"
+          - "Application ID ............. {{ mas_app_id }}"
+          - "MAS app namespace .......... {{ mas_app_namespace }}"
+          - "MAS app delay .............. {{ mas_app_install_delay }}"
+          - "MAS app  reties ............ {{ mas_app_install_retries  }}"
+
+    - name: "Wait for application to be ready ({{ mas_app_install_delay }}s delay)"
+      kubernetes.core.k8s_info:
+        api_version: "{{ mas_app_api_version }}"
+        name: "{{ mas_instance_id }}"
+        namespace: "{{ mas_app_namespace }}"
+        kind: "{{ mas_app_kind }}"
+        wait: yes # changed true to yes
+        wait_condition:
+          status: "True"
+          type: Ready
+        wait_sleep: 30
+        wait_timeout: 120 # before we give up and fall back into the retry loop
+      register: app_cr_result
+      
+    - name: Show mas app resource status
+      debug:
+        msg:
+          - "MAS {{ mas_instance_id }} Resource Status"
+          - "Retries ............... {{ mas_app_install_retries }}"
+          - "Delays ................ {{ mas_app_install_delay }}"
+          - "Resources length....... {{ app_cr_result.resources | length }}"
+          - "Resources text ........ {{ app_cr_result.resources[0].status}}"
+

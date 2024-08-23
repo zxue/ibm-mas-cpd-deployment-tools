@@ -1,0 +1,99 @@
+---
+# playbook to list cp4d admin or cpadmin account
+# set the env if the default values are different
+#export PROJECT_CPD_INST_OPERANDS=ibm-cpd
+#export CPD_SECRET_NAM=admin-user-details
+#export CPD_ROUTE_NAME=cpd
+#export CPD_ADMIN_USERNAME=admin
+#ansible-playbook list_cp4d_account.yml
+
+- hosts: localhost
+  any_errors_fatal: true
+  
+# Get MAS Credentials
+# -----------------------------------------------------------------------------
+
+  vars:
+      cpd_instance_namespace: "{{ lookup('env', 'PROJECT_CPD_INST_OPERANDS') | default('ibm-cpd', true) }}"
+      cpd_secret_name: "{{ lookup('env', 'CPD_SECRET_NAME') | default('admin-user-details', true) }}"
+      cpd_route_name: "{{ lookup('env', 'CPD_ROUTE_NAME') | default('cpd', true) }}"
+      cpd_admin_username: "{{ lookup('env', 'CPD_ADMIN_USERNAME') | default('admin', true) }}"
+      zen_cr_name: "lite-cr"
+      cpd_admin_secret_name: "{{ (cpd_admin_username == 'cpadmin') | ternary('ibm-iam-bindinfo-platform-auth-idp-credentials', 'admin-user-details') }}"
+      cpd_admin_password_property: "{{ (cpd_admin_username == 'cpadmin') | ternary('admin_password', 'initial_admin_password') }}"
+  
+  tasks:
+
+# Get CP4D Credentials
+# -----------------------------------------------------------------------------
+
+  - name: "Lookup CP4D admin credentials"
+    kubernetes.core.k8s_info:
+      api_version: v1
+      kind: Secret
+      name: "{{ cpd_secret_name }}"
+      namespace: "{{ cpd_instance_namespace }}"
+    register: cpd_credentials
+
+  - name: "Set CP4D username/password"
+    set_fact:
+      cpd_password: "{{ cpd_credentials.resources[0].data.initial_admin_password | b64decode }}"
+
+  - name: Lookup Route for admin
+    kubernetes.core.k8s_info:
+      api_version: route.openshift.io/v1
+      kind: Route
+      name: "{{ cpd_route_name }}"
+      namespace: "{{ cpd_instance_namespace }}"
+    register: cpd_admin_route
+
+  - name: "CP4D Authentication Summary:"
+    debug:
+      msg:
+        - "CP4D is Ready, use the admin credentials to authenticate"
+        - "Admin Dashboard ... https://{{ cpd_admin_route.resources[0].spec.host }}"
+        - "Username .......... {{ cpd_admin_username }}"
+        - "Password .......... {{ cpd_password }}"
+
+
+
+# Get CP4D Credentials when IAM Is Enabled
+# -----------------------------------------------------------------------------
+
+  - name: "Lookup Cloud Pak for Data admin username"
+    shell: |
+       oc get secret ibm-iam-bindinfo-platform-auth-idp-credentials -n {{ cpd_instance_namespace }} -o jsonpath="{.data['{{ cpd_admin_username }}']}" | base64 -d
+    register: cpd_admin_username_output
+
+  - name: "Set Cloud Pak for Data admin username"
+    set_fact:
+      cpd_admin_username: "{{ (cpd_admin_username_output.stdout | length > 0) | ternary(cpd_admin_username_output.stdout,'admin') }}"
+      cpd_admin_password_cmd: "oc get secret {{ cpd_admin_secret_name }} -n {{ cpd_instance_namespace }} -o jsonpath=\"{.data['{{ cpd_admin_password_property }}']}\" | base64 -d"
+      cpd_admin_password_text: "Found in '{{ cpd_admin_secret_name }}' secret under '{{ cpd_instance_namespace }}' namespace"
+
+  - name: "Lookup Cloud Pak for Data admin password"
+    shell: "{{ cpd_admin_password_cmd }}"
+    register: cpd_admin_password_output
+
+  - name: "Set Cloud Pak for Data admin password"
+    set_fact:
+      cpd_admin_password: "{{ cpd_admin_password_output.stdout }}"
+
+  - name: "Lookup Cloud Pak for Data admin url"
+    shell: |
+      oc get ZenService {{ zen_cr_name }} -o jsonpath="{.status.url}{'\n'}" -n {{ cpd_instance_namespace }}
+    register: cpd_admin_url_output
+    failed_when: cpd_admin_url_output.stdout | length == 0
+
+  - name: "Set Cloud Pak for Data admin url"
+    set_fact:
+      cpd_admin_url: "https://{{ cpd_admin_url_output.stdout }}"
+
+  - name: "CP4D Authentication Summary - When IAM Is Enabled:"
+    debug:
+      msg:
+        - "CP4D is Ready, use the admin credentials to authenticate"
+        - "Admin Dashboard ... {{ cpd_admin_url }}"
+        - "Username .......... {{ cpd_admin_username }}"
+        - "Password .......... {{ cpd_admin_password }}"
+
