@@ -117,10 +117,18 @@ Version
 v4.8
 ```
 
-To find the precise version of CP4D, you can download and run the [cpd-cli](https://github.com/IBM/cpd-cli/releases) tool.
+To find the precise version of CP4D, you can download and run the [cpd-cli](https://github.com/IBM/cpd-cli/releases) tool, after logging in with `ocp-cli manage login-to-ocp` command line, not `oc login`.
 
 ```
-oc login --token=xxx --server=xxx:6443
+#oc login --token=xxx --server=xxx:6443
+
+export OCP_URL=https://api.xxx.com:6443
+export OCP_TOKEN=xxx
+export SERVER_ARGUMENTS="--server=${OCP_URL}"
+export LOGIN_ARGUMENTS="--token=${OCP_TOKEN}"
+
+./cpd-cli manage login-to-ocp ${SERVER_ARGUMENTS} ${LOGIN_ARGUMENTS}"
+
 ./cpd-cli version
 
 cpd-cli
