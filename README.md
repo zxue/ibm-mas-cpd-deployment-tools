@@ -144,7 +144,7 @@ To find more details on the versions, run the command line below.
 oc login --token=xxx --server=xxx:6443
 export PROJECT_CPD_INST_OPERANDS=ibm-cpd
 
-./cpd-cli manage get-cr-status \ --cpd_instance_ns=${PROJECT_CPD_INST_OPERANDS}
+./cpd-cli manage get-cr-status --cpd_instance_ns=${PROJECT_CPD_INST_OPERANDS}
 
 [INFO] Output the result in the below chart:
 
@@ -158,3 +158,4 @@ cognos_analytics  CAService      ca-addon-cr     ibm-cpd      Completed  25.0.0 
 
 ```
 
+Another option to check CP4D version is through the custom definition resources in OpenShift. Search for "ibmcpd" and open the yaml file of the instance. You can find the CP4D version there.
